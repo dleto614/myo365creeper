@@ -52,7 +52,7 @@ func main() {
 	results := ChkStdin(os.Stdin)
 
 	if len(results) > 0 {
-		data = append(data, strings.TrimSpace(results))
+		data = append(data, results...)
 	} else if *file != "" {
 		data = ReadFile(file)
 	} else {
@@ -183,8 +183,8 @@ func usage() {
 	flag.PrintDefaults()
 }
 
-func ChkStdin(stdin *os.File) string {
-	var results string
+func ChkStdin(stdin *os.File) []string {
+	var results []string
 
 	stat, err := stdin.Stat()
 	if err != nil {
@@ -196,7 +196,12 @@ func ChkStdin(stdin *os.File) string {
 		if err != nil {
 			log.Fatal(err)
 		}
-		results = string(bytes)
+
+		for _, line := range strings.Split(string(bytes), "\n") {
+			if strings.TrimSpace(line) != "" { // skip empties
+				results = append(results, line)
+			}
+		}
 	}
 
 	return results
