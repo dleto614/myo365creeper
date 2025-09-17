@@ -60,19 +60,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	var wg sync.WaitGroup
-	emailChannel := make(chan string)
-	numWorkers := 5
-	rateLimit := time.NewTicker(3 * time.Second) // Rate limiter
+	wg := sync.WaitGroup{}
+	const batchSize = 10
+	numWorkers := 10
 
-	// Start worker goroutines
+	// Create a buffered channel to hold emails in batches.
+	emailChannel := make(chan string, batchSize)
+
 	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for email := range emailChannel {
 				response, err := validateEmail(email)
 				if err != nil {
-					log.Printf("[!]Error validating email %s: %v", email, err)
-					wg.Done()
+					log.Printf("[!] Error validating email %s: %v", email, err)
 					continue
 				}
 
@@ -93,21 +95,43 @@ func main() {
 						fmt.Println(string(CreateJson(response)))
 					}
 				}
-
-				wg.Done() // Notify that this goroutine is done
 			}
 		}()
 	}
 
-	// Send emails to the channel with rate limiting
-	for _, email := range data {
-		wg.Add(1) // Increment the WaitGroup counter
-		emailChannel <- email
-		<-rateLimit.C // Wait for the rate limiter before sending the next email
-	}
-	close(emailChannel) // Close the channel after sending all emails
+	// Process emails in batches of size `batchSize`
+	for i := 0; i < len(data); i += batchSize {
+		end := i + batchSize
+		if end > len(data) {
+			end = len(data)
+		}
 
-	wg.Wait() // Wait for all goroutines to finish
+		batch := data[i:end]
+		var batchWg sync.WaitGroup
+
+		// For each email in the batch, add it to the channel and increment the batchWaitGroup.
+		for _, email := range batch {
+			batchWg.Add(1)
+			go func(email string) {
+				defer batchWg.Done()
+				emailChannel <- email
+			}(email)
+		}
+
+		// Wait for all emails in this batch to be processed.
+		batchWg.Wait()
+
+		// Wait between batches to make sure we don't get blocked.
+		// I hate you Microsoft.
+		time.Sleep(10 * time.Second)
+	}
+
+	// Close the channel once all emails are sent
+	close(emailChannel)
+
+	// Wait for all goroutines to finish processing emails
+	wg.Wait()
+
 	fmt.Println("[*] All emails processed.")
 }
 
@@ -208,7 +232,7 @@ func FileWrite(data []byte, data_file string) {
 	}
 	defer file.Close()
 
-	// Write the JSON data followed by a newline
+	// Write the JSON data followed by a newline.
 	_, err = file.Write(data)
 	if err != nil {
 		log.Println("[!] Error writing JSON data to output file:", err)
