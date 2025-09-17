@@ -29,17 +29,12 @@ Usage of ./o365creeper:
 
 Fairly simple tool to use. You can give a list of emails via `-i` and if you just want to only get the valid emails, you can specify `-e`. If not, by default it outputs:
 
-\- Username (email)
-
-\- Display Name
-
-\- Valid (true or false)
-
-\- is_unmanaged (true or false)
-
-\- throttle_status (0 or 1 not sure if can be any other number)
-
-\- is_signup_disallowed
+\- Username (email)  
+\- Display Name  
+\- Valid (true or false)  
+\- is_unmanaged (true or false)  
+\- throttle_status (0 or 1 not sure if can be any other number)  
+\- is_signup_disallowed  
 
 ---
 
